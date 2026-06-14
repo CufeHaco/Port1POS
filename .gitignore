@@ -1,0 +1,6 @@
+*.gem
+.bundle
+log/
+tmp/
+.DS_Store
+*.dbf  # Sample data
