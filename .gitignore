@@ -1,6 +1,6 @@
-*.gem
-.bundle
-log/
-tmp/
-.DS_Store
-*.dbf  # Sample data
+*.dbf
+*.log
+/data/
+*.jar
+*.exe
+Gemfile.lock
