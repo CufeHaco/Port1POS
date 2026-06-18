@@ -14,7 +14,27 @@
 # Run standalone for now: ruby lib/gui/tk_main.rb
 # Later: integrate with boot.rb + MicroIPC for real backend
 
-require 'tk'
+begin
+  require 'tk'
+rescue LoadError => e
+  abort <<~MSG
+    [Port1POS GUI] Tk could not be loaded: #{e.message}
+
+    The Tk GUI requires a working Ruby Tk (tk gem + Tcl/Tk 8.6) installation.
+
+    Please run Cufe's updated Tk patch installer first:
+
+      git clone https://github.com/CufeHaco/rubytk_patchV2
+      cd rubytk_patchV2
+      ruby rubytk_install.rb
+
+    After successful installation and testing the sample GUI, re-run this Port1POS GUI.
+
+    This patch is maintained separately and is required for modern Ruby/JRuby Tk support
+    on Ubuntu, macOS, and Windows.
+  MSG
+end
+
 # require_relative '../micro_ipc'  # uncomment when wiring real IPC
 
 module Port1POS
