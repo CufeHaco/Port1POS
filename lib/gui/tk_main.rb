@@ -1,17 +1,19 @@
-# lib/gui/tk_main.rb - Tk-based GUI for Port1POS (Register side)
+# lib/gui/tk_main.rb - Tk/ttk GUI for Port1POS (Register side)
+# Using ttk (themed Tk widgets) for a modern, native-looking interface
 # Following Cufe style where applicable:
 #   - Modular, self-documenting
 #   - Build state (current transaction as array) → Match action → Verify (age/compliance gates) → Execute
 #   - Threaded Tk note: Tk must stay in main thread. Use queues/Thread for IPC and heavy work.
 #
-# This is v1 starter GUI:
-#   - Scan/PLU entry
+# This is the main Port1POS application GUI (the "app guide"):
+#   - Scan/PLU entry (ttk)
 #   - Transaction list + running total
-#   - Quick tender buttons
-#   - Age verification dialog (Georgia liquor compliance critical path)
-#   - Status + future IPC wiring point (uses MicroIPC when available)
+#   - Quick tender buttons (ttk)
+#   - Age verification dialog (Georgia liquor compliance — ttk themed)
+#   - Status bar + future IPC wiring point
 #
-# Run standalone for now: ruby lib/gui/tk_main.rb
+# Requires Tcl/Tk 8.6+ (provided by setup/install_tk.rb)
+# Run standalone: ruby lib/gui/tk_main.rb
 # Later: integrate with boot.rb + MicroIPC for real backend
 
 begin
@@ -33,8 +35,7 @@ rescue LoadError => e
   MSG
 end
 
-# require_relative '../micro_ipc'  # uncomment when wiring real IPC
-
+# Use ttk (themed) widgets where available for modern look
 module Port1POS
   module GUI
     class TkMain
@@ -43,6 +44,7 @@ module Port1POS
         @transaction = []          # array of {sku:, desc:, qty:, price:, total:}
         @total = 0.0
         @ipc = nil                 # MicroIPC instance when wired
+        @age_verified = false
 
         build_ui
       end
@@ -50,68 +52,75 @@ module Port1POS
       def build_ui
         @root = TkRoot.new do
           title "Port1POS — Liquor Store Register"
-          geometry "800x600"
+          geometry "820x620"
           resizable true, true
         end
 
-        # Top frame: Scan input
-        top = TkFrame.new(@root) { pack fill: 'x', padx: 10, pady: 5 }
-        TkLabel.new(top) { text "Scan / PLU:"; pack side: 'left' }
-        @scan_entry = TkEntry.new(top) do
-          width 30
+        # Use ttk styles where possible
+        style = Tk::Tile::Style.new
+
+        # Top frame: Scan input (ttk)
+        top = Tk::Tile::Frame.new(@root) { pack fill: 'x', padx: 10, pady: 8 }
+        Tk::Tile::Label.new(top) { text "Scan / PLU:"; pack side: 'left', padx: 5 }
+        @scan_entry = Tk::Tile::Entry.new(top) do
+          width 32
           pack side: 'left', padx: 5
           bind 'Return', proc { add_item_from_scan }
         end
-        TkButton.new(top) { text "Add Item"; command proc { add_item_from_scan }; pack side: 'left' }
+        Tk::Tile::Button.new(top) { text "Add Item"; command proc { add_item_from_scan }; pack side: 'left', padx: 5 }
 
-        # Main content: Transaction list + totals
-        middle = TkFrame.new(@root) { pack fill: 'both', expand: true, padx: 10, pady: 5 }
+        # Main content area
+        middle = Tk::Tile::Frame.new(@root) { pack fill: 'both', expand: true, padx: 10, pady: 5 }
 
-        # Listbox for items (simple, later upgrade to tree/table)
-        @listbox = TkListbox.new(middle) do
-          height 15
-          width 80
+        # Transaction list (classic Listbox for simplicity; can upgrade to Ttk::Treeview later)
+        list_frame = Tk::Tile::Frame.new(middle) { pack side: 'left', fill: 'both', expand: true }
+        @listbox = TkListbox.new(list_frame) do
+          height 16
+          width 85
           pack side: 'left', fill: 'both', expand: true
         end
-        TkScrollbar.new(middle) do
+        TkScrollbar.new(list_frame) do
           command proc { |*args| @listbox.yview(*args) }
           pack side: 'right', fill: 'y'
         end
 
-        # Right side: Totals + quick actions
-        right = TkFrame.new(middle) { pack side: 'right', fill: 'y', padx: 10 }
+        # Right sidebar: Totals + actions (ttk)
+        right = Tk::Tile::Frame.new(middle) { pack side: 'right', fill: 'y', padx: 12 }
 
-        TkLabel.new(right) { text "Current Total"; pack pady: 5 }
-        @total_label = TkLabel.new(right) do
+        Tk::Tile::Label.new(right) { text "Current Total"; pack pady: 6 }
+        @total_label = Tk::Tile::Label.new(right) do
           text "$0.00"
-          font TkFont.new(size: 18, weight: 'bold')
-          pack pady: 5
+          font TkFont.new(size: 20, weight: 'bold')
+          pack pady: 4
         end
 
-        # Tender buttons (quick tender for speed)
-        TkButton.new(right) { text "Tender CASH"; width 18; command proc { tender(:cash) }; pack pady: 3, fill: 'x' }
-        TkButton.new(right) { text "Tender CREDIT"; width 18; command proc { tender(:credit) }; pack pady: 3, fill: 'x' }
-        TkButton.new(right) { text "Tender CHECK"; width 18; command proc { tender(:check) }; pack pady: 3, fill: 'x' }
+        # Tender buttons (ttk styled)
+        Tk::Tile::Button.new(right) { text "Tender CASH"; width 20; command proc { tender(:cash) }; pack pady: 4, fill: 'x' }
+        Tk::Tile::Button.new(right) { text "Tender CREDIT"; width 20; command proc { tender(:credit) }; pack pady: 4, fill: 'x' }
+        Tk::Tile::Button.new(right) { text "Tender CHECK"; width 20; command proc { tender(:check) }; pack pady: 4, fill: 'x' }
 
-        TkSeparator.new(right) { pack fill: 'x', pady: 8 }
+        Tk::Tile::Separator.new(right) { pack fill: 'x', pady: 10 }
 
-        # Compliance critical: Age verification
-        TkButton.new(right) do
+        # Compliance critical: Age verification (ttk)
+        age_btn = Tk::Tile::Button.new(right) do
           text "VERIFY AGE"
-          width 18
-          bg 'orange'
+          width 20
           command proc { prompt_age_verification }
-          pack pady: 3, fill: 'x'
+          pack pady: 4, fill: 'x'
+        end
+        # Give it a distinct style if possible
+        begin
+          age_btn['style'] = 'Accent.TButton' rescue nil
         end
 
         # Bottom status bar
-        @status = TkLabel.new(@root) do
-          text "Ready — IPC: not connected (demo mode)"
+        @status = Tk::Tile::Label.new(@root) do
+          text "Ready — IPC: not connected (demo mode)  |  Use setup/install_tk.rb if Tk is missing"
           anchor 'w'
-          pack fill: 'x', side: 'bottom', padx: 10, pady: 3
+          pack fill: 'x', side: 'bottom', padx: 10, pady: 6
         end
 
-        # Menu (minimal)
+        # Minimal menu
         menu = TkMenu.new(@root)
         @root.menu menu
         file_menu = TkMenu.new(menu)
@@ -120,21 +129,18 @@ module Port1POS
         file_menu.add :separator
         file_menu.add :command, label: 'Exit', command: proc { exit }
 
-        # Initial state
         update_display
         @root.bind 'Destroy', proc { cleanup }
       end
 
-      # === Core logic (Build-Match-Verify-Execute style in handlers) ===
+      # === Core logic (Build-Match-Verify-Execute style) ===
 
       def add_item_from_scan
         code = @scan_entry.get.strip
         return if code.empty?
 
-        # BUILD: create item state (in real version: lookup via DBF/IPC)
         item = build_item_from_code(code)
 
-        # MATCH + VERIFY: basic checks (expand with age rules, inventory, etc.)
         if item
           @transaction << item
           @total += item[:total]
@@ -148,14 +154,12 @@ module Port1POS
       end
 
       def build_item_from_code(code)
-        # Placeholder lookup — later: query DBF or send via MicroIPC to server
-        # For demo: fake a few liquor items
+        # Placeholder — later replace with real DBF / MicroIPC lookup
         demo_items = {
           '12345' => { sku: '12345', desc: 'Bourbon 750ml', qty: 1, price: 24.99 },
           '67890' => { sku: '67890', desc: 'Vodka 1L',      qty: 1, price: 18.50 },
           '11111' => { sku: '11111', desc: 'Craft Beer 6pk', qty: 1, price: 12.99 }
         }
-
         base = demo_items[code] || { sku: code, desc: "Item #{code}", qty: 1, price: 9.99 }
         total = (base[:qty] * base[:price]).round(2)
         base.merge(total: total)
@@ -164,63 +168,56 @@ module Port1POS
       def tender(type)
         return if @transaction.empty?
 
-        # VERIFY gate: age check for alcohol (simplified — real version tracks alcohol items)
-        # For demo we always prompt on tender if not verified this transaction
         unless @age_verified
           result = prompt_age_verification
-          return unless result  # user cancelled or failed
+          return unless result
         end
 
-        # EXECUTE tender
         Tk.messageBox type: 'ok', icon: 'info', title: "Tender #{type.to_s.upcase}",
-                      message: "Tendered $#{@total.round(2)} via #{type}\n\nTransaction complete.\n\n(IPC print job would be sent here)"
-
-        # In real version:
-        #   @ipc.send_message({action: :tender, type: type, total: @total, items: @transaction})
-        #   then trigger print via print_server / MicroIPC
+                      message: "Tendered $#{@total.round(2)} via #{type}\n\nTransaction complete.\n(IPC print + backend would fire here)"
 
         new_transaction
       end
 
       def prompt_age_verification
-        # Critical compliance dialog (Georgia: appears under 30?)
-        dlg = TkToplevel.new(@root) { title "Age Verification" }
-        TkLabel.new(dlg) { text "Does the customer appear to be under 30 years old?"; pack pady: 10 }
+        dlg = TkToplevel.new(@root) { title "Age Verification — Port1POS" }
 
-        btn_frame = TkFrame.new(dlg) { pack pady: 10 }
+        Tk::Tile::Label.new(dlg) { text "Does the customer appear to be under 30 years old?"; pack pady: 12, padx: 20 }
+
+        btn_frame = Tk::Tile::Frame.new(dlg) { pack pady: 10 }
+
         result = nil
 
-        TkButton.new(btn_frame) do
-          text "YES - Check ID"
+        Tk::Tile::Button.new(btn_frame) do
+          text "YES — Check ID"
           command proc {
             result = true
             dlg.destroy
-            Tk.messageBox type: 'ok', icon: 'warning', title: 'ID Check',
-                          message: "Please scan or enter DOB / verify ID.\n\n(Full DOB entry + compliance logging coming next)"
+            Tk.messageBox type: 'ok', icon: 'warning', title: 'ID Check Required',
+                          message: "Please verify ID / scan DOB.\n\n(Full DOB entry + compliance logging coming in next iteration)"
           }
-          pack side: 'left', padx: 5
+          pack side: 'left', padx: 6
         end
 
-        TkButton.new(btn_frame) do
-          text "NO - Looks 30+"
+        Tk::Tile::Button.new(btn_frame) do
+          text "NO — Looks 30+"
           command proc {
             result = true
             @age_verified = true
             dlg.destroy
             @status.text = "Age verified (appears 30+)"
           }
-          pack side: 'left', padx: 5
+          pack side: 'left', padx: 6
         end
 
-        TkButton.new(btn_frame) do
+        Tk::Tile::Button.new(btn_frame) do
           text "Cancel"
           command proc { dlg.destroy }
-          pack side: 'left', padx: 5
+          pack side: 'left', padx: 6
         end
 
-        dlg.grab          # modal
-        dlg.wait_window   # block until closed
-
+        dlg.grab
+        dlg.wait_window
         result
       end
 
@@ -254,12 +251,10 @@ module Port1POS
   end
 end
 
-# Standalone launcher for development / demo
+# Standalone launcher
 if __FILE__ == $0
-  puts "Starting Port1POS Tk GUI (demo mode)..."
-  puts "Note: Tk must be installed on the target system (Tcl/Tk + ruby-tk or JRuby equivalent)."
-  puts "This is a functional v1 — age verification, transaction flow, and tender paths are real."
-
+  puts "Starting Port1POS (ttk GUI)..."
+  puts "If Tk is missing, run: ruby setup/install_tk.rb"
   gui = Port1POS::GUI::TkMain.new
   gui.run
 end
