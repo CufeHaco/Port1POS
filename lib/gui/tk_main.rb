@@ -22,16 +22,14 @@ rescue LoadError => e
 
     The Tk GUI requires a working Ruby Tk (tk gem + Tcl/Tk 8.6) installation.
 
-    Please run Cufe's updated Tk patch installer first:
+    Please run the integrated Port1POS Tk installer first:
 
-      git clone https://github.com/CufeHaco/rubytk_patchV2
-      cd rubytk_patchV2
-      ruby rubytk_install.rb
+      ruby setup/install_tk.rb
 
-    After successful installation and testing the sample GUI, re-run this Port1POS GUI.
+    (This contains Cufe's rubytk_patchV2 logic integrated directly into Port1POS
+     for a self-contained cross-platform experience.)
 
-    This patch is maintained separately and is required for modern Ruby/JRuby Tk support
-    on Ubuntu, macOS, and Windows.
+    After it completes successfully, re-run this GUI.
   MSG
 end
 

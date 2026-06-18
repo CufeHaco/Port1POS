@@ -19,22 +19,20 @@ A modern JRuby-based Point of Sale system for liquor stores, designed as a drop-
 - Ruby 3+ or JRuby 10.1+
 - Tcl/Tk 8.6 (for the GUI)
 
-**Important: Tk GUI Setup**  
-Port1POS includes a Tk-based register GUI (`lib/gui/tk_main.rb`).  
-Modern Ruby/JRuby Tk support requires Cufe's updated patch:
+**Important: Tk GUI Setup (Integrated)**  
+Port1POS includes a full Tk register GUI. The Tk installer is now built-in:
 
 ```bash
-git clone https://github.com/CufeHaco/rubytk_patchV2
-cd rubytk_patchV2
-ruby rubytk_install.rb
+ruby setup/install_tk.rb
 ```
 
-This script handles dependencies, symlinks, and verification on Ubuntu, macOS, and Windows.  
-Run it once before using the GUI.
+This is Cufe's rubytk_patchV2 logic integrated directly into Port1POS (self-contained, updated for Linux/macOS/Windows + JRuby notes). It handles everything needed for `require 'tk'` to work.
+
+Run it once before `ruby lib/gui/tk_main.rb`.
 
 ### Quick Start
 1. `bundle install`
-2. (If using GUI) Run the Tk patch above
+2. (If using GUI) Run `ruby setup/install_tk.rb`
 3. `ruby lib/gui/tk_main.rb`   # standalone demo
 4. Configure data paths for LiquorPOS DBF files (when DBF layer is complete)
 
